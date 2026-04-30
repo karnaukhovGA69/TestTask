@@ -53,5 +53,5 @@ func (db *DBelg) AddURL(url string) (string, error) {
 	return shortURL, nil
 }
 func MakeShortURL(url string) string {
-	return ""
+	return "" //TODO
 }
