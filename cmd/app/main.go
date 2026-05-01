@@ -10,10 +10,15 @@ import (
 	"os"
 	"time"
 
+	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("не получилось подгрузить переменные окружения")
+	}
 	logger, err := zap.NewProduction()
 	if err != nil {
 		log.Fatalln("ERROR:Не получилось создать логгер")
