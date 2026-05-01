@@ -1,0 +1,16 @@
+services:
+  
+  postgres:
+    image: postgres:16.0
+    container_name: postgres_for_short_url
+    environment: 
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "6969:6969"
+    volumes:
+      - ./migrations/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
+volumes:
+  postgres_data:
