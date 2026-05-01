@@ -1,17 +1,1 @@
-# Environment
 .env
-
-# Claude / OMC agent files
-.claude/
-.omc/
-
-# JSON artifacts from in-memory storage
-internal/storage/dbelg/*.json
-
-# Built binary
-url-shortener
-
-# IDE
-.idea/
-.vscode/
-*.swp

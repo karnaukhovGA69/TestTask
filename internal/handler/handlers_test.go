@@ -28,10 +28,6 @@ func (m *mockService) GetLongURL(short string) (string, error) {
 	return "", errors.New("not implemented")
 }
 
-// handlerWithMock creates a Handler that uses a mockService directly.
-// We bypass NewHandler because it expects *service.Service; instead we test PostHandler/GetHandler logic
-// by embedding a testable handler struct.
-
 type testHandler struct {
 	mock *mockService
 }
@@ -102,7 +98,6 @@ func TestPostHandler_EmptyURL(t *testing.T) {
 	if rw.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d", rw.Code)
 	}
-	// Body must NOT contain a JSON shortURL after the error
 	respBody := rw.Body.String()
 	if strings.Contains(respBody, "shortURL") {
 		t.Errorf("response body should not contain shortURL after error, got: %q", respBody)
