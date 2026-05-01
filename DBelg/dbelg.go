@@ -2,6 +2,7 @@ package dbelg
 
 import (
 	"errors"
+	"main/shorturl"
 	"sync"
 )
 
@@ -41,17 +42,14 @@ func (db *DBelg) AddURL(url string) (string, error) {
 	if value, ok := db.longToShort[url]; ok {
 		return value, nil
 	}
-	shortURL := MakeShortURL(url)
+	shortURL := shorturl.MakeShortURL(url)
 	if _, ok := db.shortToLong[shortURL]; ok {
 		for ok {
-			shortURL = MakeShortURL(url)
+			shortURL = shorturl.MakeShortURL(url)
 			_, ok = db.shortToLong[shortURL]
 		}
 	}
 	db.longToShort[url] = shortURL
 	db.shortToLong[shortURL] = url
 	return shortURL, nil
-}
-func MakeShortURL(url string) string {
-	return "" //TODO
 }
