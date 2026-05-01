@@ -34,7 +34,7 @@ func (h *Handler) GetHandler(rw http.ResponseWriter, r *http.Request) {
 }
 
 type URL struct {
-	url string `json:"url"`
+	Url string `json:"url"`
 }
 
 func (h *Handler) PostHandler(rw http.ResponseWriter, r *http.Request) {
@@ -45,7 +45,7 @@ func (h *Handler) PostHandler(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shortURL, err := h.service.CreateShortURL(url.url)
+	shortURL, err := h.service.CreateShortURL(url.Url)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 	}
