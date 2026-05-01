@@ -28,8 +28,8 @@ func (h *Handler) GetHandler(rw http.ResponseWriter, r *http.Request) {
 		http.Error(rw, "Не найден", http.StatusNotFound)
 		return
 	}
-	rw.WriteHeader(http.StatusOK)
 	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
 	json.NewEncoder(rw).Encode(map[string]string{"URL": originalURL})
 }
 
@@ -48,6 +48,7 @@ func (h *Handler) PostHandler(rw http.ResponseWriter, r *http.Request) {
 	shortURL, err := h.service.CreateShortURL(url.Url)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
 	}
 	fullShortURL := "http://" + r.Host + "/" + shortURL
 	rw.Header().Set("Content-Type", "application/json")

@@ -15,10 +15,7 @@ import (
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("не получилось подгрузить переменные окружения")
-	}
+	_ = godotenv.Load()
 	logger, err := zap.NewProduction()
 	if err != nil {
 		log.Fatalln("ERROR:Не получилось создать логгер")

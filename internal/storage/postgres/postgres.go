@@ -79,6 +79,14 @@ func (p *PostgresDB) AddURL(url string) (string, error) {
 			return newShortURL, nil
 		}
 		if isUniqueViolation(err) {
+			var pqErr *pq.Error
+			if errors.As(err, &pqErr) && pqErr.Constraint == "urls_longurl_key" {
+				var existing string
+				selectErr := p.db.QueryRow(`SELECT shortURL FROM urls WHERE longURL = $1`, url).Scan(&existing)
+				if selectErr == nil {
+					return existing, nil
+				}
+			}
 			continue
 		}
 		return "", err
