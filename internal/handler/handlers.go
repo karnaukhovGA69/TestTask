@@ -1,17 +1,17 @@
-package handlers
+package handler
 
 import (
 	"encoding/json"
-	"main/internal"
+	"main/internal/service"
 	"net/http"
 	"strings"
 )
 
 type Handler struct {
-	service *internal.Service
+	service *service.Service
 }
 
-func NewHandler(service *internal.Service) *Handler {
+func NewHandler(service *service.Service) *Handler {
 	return &Handler{
 		service: service,
 	}

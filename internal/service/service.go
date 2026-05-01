@@ -1,15 +1,16 @@
-package internal
+package service
 
 import (
 	"errors"
+	"main/internal/storage"
 	"strings"
 )
 
 type Service struct {
-	database DB
+	database storage.DB
 }
 
-func NewService(db DB) *Service {
+func NewService(db storage.DB) *Service {
 	return &Service{database: db}
 }
 

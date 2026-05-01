@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"main/internal/storage"
 	"os"
 
 	"go.uber.org/zap"
@@ -20,6 +21,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	//database := MakeDB(args[1])
+}
+
+func makeDB(typeOfDB string) storage.DB {
 
 }

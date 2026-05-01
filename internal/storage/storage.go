@@ -1,4 +1,4 @@
-package internal
+package storage
 
 type DB interface {
 	GetShortURL(url string) (string, error)
