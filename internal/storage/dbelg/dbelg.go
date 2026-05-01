@@ -6,6 +6,8 @@ import (
 	"sync"
 )
 
+const maxGenerateAttempts = 69
+
 type DBelg struct {
 	longToShort map[string]string
 	shortToLong map[string]string
@@ -39,17 +41,26 @@ func (db *DBelg) GetLongURL(shortURL string) (string, error) {
 func (db *DBelg) AddURL(url string) (string, error) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
+
 	if value, ok := db.longToShort[url]; ok {
 		return value, nil
 	}
-	shortURL := shorturl.MakeShortURL(url)
-	if _, ok := db.shortToLong[shortURL]; ok {
-		for ok {
-			shortURL = shorturl.MakeShortURL(url)
-			_, ok = db.shortToLong[shortURL]
+
+	for i := 0; i < maxGenerateAttempts; i++ {
+		shortURL, err := shorturl.MakeShortURL()
+		if err != nil {
+			return "", errors.New("не получилось создать короткий URL")
 		}
+
+		if _, ok := db.shortToLong[shortURL]; ok {
+			continue
+		}
+
+		db.longToShort[url] = shortURL
+		db.shortToLong[shortURL] = url
+
+		return shortURL, nil
 	}
-	db.longToShort[url] = shortURL
-	db.shortToLong[shortURL] = url
-	return shortURL, nil
+
+	return "", errors.New("не получилось создать уникальный короткий URL")
 }
