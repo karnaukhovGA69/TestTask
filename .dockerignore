@@ -1,3 +1,7 @@
 .git
+.env
+.env.*
 Dockerfile
 docker-compose.yml
+PROJECT_REVIEW.md
+*.docx

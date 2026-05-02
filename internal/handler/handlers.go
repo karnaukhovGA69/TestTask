@@ -2,6 +2,8 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
+	"main/internal/apperrors"
 	"main/internal/service"
 	"net/http"
 	"strings"
@@ -19,13 +21,21 @@ func NewHandler(service *service.Service) *Handler {
 func (h *Handler) GetHandler(rw http.ResponseWriter, r *http.Request) {
 	shortURL := strings.TrimSpace(r.PathValue("shortURL"))
 	if shortURL == "" {
-		http.Error(rw, "пустой URL", http.StatusBadRequest)
+		http.Error(rw, apperrors.ErrEmptyURL.Error(), http.StatusBadRequest)
 		return
 	}
 
 	originalURL, err := h.service.GetLongURL(shortURL)
 	if err != nil {
-		http.Error(rw, "Не найден", http.StatusNotFound)
+		if errors.Is(err, apperrors.ErrNotFound) {
+			http.Error(rw, "Не найден", http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, apperrors.ErrEmptyURL) {
+			http.Error(rw, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 	rw.Header().Set("Content-Type", "application/json")
@@ -41,13 +51,17 @@ func (h *Handler) PostHandler(rw http.ResponseWriter, r *http.Request) {
 	var url URL
 	err := json.NewDecoder(r.Body).Decode(&url)
 	if err != nil {
-		http.Error(rw, "не получилось распарсить URL", http.StatusBadRequest)
+		http.Error(rw, apperrors.ErrBadJSON.Error(), http.StatusBadRequest)
 		return
 	}
 
 	shortURL, err := h.service.CreateShortURL(url.Url)
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		if errors.Is(err, apperrors.ErrEmptyURL) {
+			http.Error(rw, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 	fullShortURL := "http://" + r.Host + "/" + shortURL

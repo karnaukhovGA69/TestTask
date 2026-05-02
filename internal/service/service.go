@@ -1,7 +1,7 @@
 package service
 
 import (
-	"errors"
+	"main/internal/apperrors"
 	"main/internal/storage"
 	"strings"
 )
@@ -16,7 +16,7 @@ func NewService(db storage.DB) *Service {
 
 func (service *Service) CreateShortURL(originalURL string) (string, error) {
 	if strings.TrimSpace(originalURL) == "" {
-		return "", errors.New("Пустой URL")
+		return "", apperrors.ErrEmptyURL
 	}
 
 	return service.database.AddURL(originalURL)
@@ -24,14 +24,14 @@ func (service *Service) CreateShortURL(originalURL string) (string, error) {
 
 func (service *Service) GetLongURL(shortURL string) (string, error) {
 	if strings.TrimSpace(shortURL) == "" {
-		return "", errors.New("Пустой URL")
+		return "", apperrors.ErrEmptyURL
 	}
 	return service.database.GetLongURL(shortURL)
 }
 
 func (service *Service) GetShortURL(longURL string) (string, error) {
 	if strings.TrimSpace(longURL) == "" {
-		return "", errors.New("Пустой URL")
+		return "", apperrors.ErrEmptyURL
 	}
 	return service.database.GetShortURL(longURL)
 }

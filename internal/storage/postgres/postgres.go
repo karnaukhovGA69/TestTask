@@ -3,12 +3,11 @@ package postgres
 import (
 	"database/sql"
 	"errors"
+	"main/internal/apperrors"
 	"main/shorturl"
 
 	"github.com/lib/pq"
 )
-
-var ErrNotFound = errors.New("ссылка не найдена")
 
 const maxGenerateAttempts = 69
 
@@ -37,7 +36,7 @@ func (p *PostgresDB) GetShortURL(url string) (string, error) {
 		return shortURL, nil
 	}
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", ErrNotFound
+		return "", apperrors.ErrNotFound
 	}
 	return "", err
 }
@@ -48,7 +47,7 @@ func (p *PostgresDB) GetLongURL(url string) (string, error) {
 	err := p.db.QueryRow(`SELECT longURL FROM urls WHERE shortURL = $1`, url).Scan(&longURL)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", ErrNotFound
+		return "", apperrors.ErrNotFound
 	}
 
 	if err != nil {
@@ -71,7 +70,7 @@ func (p *PostgresDB) AddURL(url string) (string, error) {
 	for i := 0; i < maxGenerateAttempts; i++ {
 		newShortURL, err := shorturl.MakeShortURL()
 		if err != nil {
-			return "", errors.New("Не получилось создать URL")
+			return "", apperrors.ErrShortURLGeneration
 		}
 
 		_, err = p.db.Exec(`INSERT INTO urls (longURL, shortURL) VALUES ($1,$2)`, url, newShortURL)
@@ -92,7 +91,7 @@ func (p *PostgresDB) AddURL(url string) (string, error) {
 		return "", err
 
 	}
-	return "", errors.New("Не получилось создать короткий URL")
+	return "", apperrors.ErrUniqueShortURLGeneration
 }
 
 func isUniqueViolation(err error) bool {

@@ -3,178 +3,186 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"main/internal/apperrors"
+	"main/internal/service"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 )
 
-type mockService struct {
-	createFn  func(url string) (string, error)
-	getLongFn func(short string) (string, error)
+type mockDB struct {
+	addURLFn     func(url string) (string, error)
+	getLongURLFn func(url string) (string, error)
+	getShortFn   func(url string) (string, error)
 }
 
-func (m *mockService) CreateShortURL(url string) (string, error) {
-	if m.createFn != nil {
-		return m.createFn(url)
+func (m *mockDB) AddURL(url string) (string, error) {
+	if m.addURLFn != nil {
+		return m.addURLFn(url)
 	}
-	return "", errors.New("not implemented")
+	return "", errors.New("unexpected AddURL call")
 }
 
-func (m *mockService) GetLongURL(short string) (string, error) {
-	if m.getLongFn != nil {
-		return m.getLongFn(short)
+func (m *mockDB) GetLongURL(url string) (string, error) {
+	if m.getLongURLFn != nil {
+		return m.getLongURLFn(url)
 	}
-	return "", errors.New("not implemented")
+	return "", errors.New("unexpected GetLongURL call")
 }
 
-type testHandler struct {
-	mock *mockService
+func (m *mockDB) GetShortURL(url string) (string, error) {
+	if m.getShortFn != nil {
+		return m.getShortFn(url)
+	}
+	return "", errors.New("unexpected GetShortURL call")
 }
 
-func (th *testHandler) post(rw http.ResponseWriter, r *http.Request) {
-	var url URL
-	err := json.NewDecoder(r.Body).Decode(&url)
-	if err != nil {
-		http.Error(rw, "не получилось распарсить URL", http.StatusBadRequest)
-		return
-	}
-	shortURL, err := th.mock.CreateShortURL(url.Url)
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
-		return
-	}
-	fullShortURL := "http://" + r.Host + "/" + shortURL
-	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode(map[string]string{"shortURL": fullShortURL})
-}
-
-func (th *testHandler) get(rw http.ResponseWriter, r *http.Request) {
-	shortURL := strings.TrimSpace(r.PathValue("shortURL"))
-	if shortURL == "" {
-		http.Error(rw, "пустой URL", http.StatusBadRequest)
-		return
-	}
-	originalURL, err := th.mock.GetLongURL(shortURL)
-	if err != nil {
-		http.Error(rw, "Не найден", http.StatusNotFound)
-		return
-	}
-	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode(map[string]string{"URL": originalURL})
+func newTestHandler(db *mockDB) *Handler {
+	return NewHandler(service.NewService(db))
 }
 
 func TestPostHandler_ValidURL(t *testing.T) {
-	th := &testHandler{mock: &mockService{
-		createFn: func(url string) (string, error) { return "abc1234567", nil },
-	}}
-	body := strings.NewReader(`{"url":"https://example.com"}`)
-	req := httptest.NewRequest(http.MethodPost, "/url", body)
+	h := newTestHandler(&mockDB{
+		addURLFn: func(url string) (string, error) {
+			if url != "https://example.com" {
+				t.Fatalf("expected URL to be passed to storage, got %q", url)
+			}
+			return "abc1234567", nil
+		},
+	})
+	req := httptest.NewRequest(http.MethodPost, "http://short.test/url", strings.NewReader(`{"url":"https://example.com"}`))
 	req.Header.Set("Content-Type", "application/json")
 	rw := httptest.NewRecorder()
-	th.post(rw, req)
+
+	h.PostHandler(rw, req)
+
 	if rw.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", rw.Code)
+		t.Fatalf("expected 200, got %d", rw.Code)
+	}
+	if ct := rw.Header().Get("Content-Type"); !strings.Contains(ct, "application/json") {
+		t.Fatalf("expected Content-Type application/json, got %q", ct)
 	}
 	var resp map[string]string
 	if err := json.NewDecoder(rw.Body).Decode(&resp); err != nil {
 		t.Fatalf("invalid JSON response: %v", err)
 	}
-	if _, ok := resp["shortURL"]; !ok {
-		t.Error("response missing 'shortURL' key")
+	if resp["shortURL"] != "http://short.test/abc1234567" {
+		t.Fatalf("unexpected shortURL response: %q", resp["shortURL"])
 	}
 }
 
 func TestPostHandler_EmptyURL(t *testing.T) {
-	th := &testHandler{mock: &mockService{
-		createFn: func(url string) (string, error) { return "", errors.New("Пустой URL") },
-	}}
-	body := strings.NewReader(`{"url":""}`)
-	req := httptest.NewRequest(http.MethodPost, "/url", body)
+	h := newTestHandler(&mockDB{
+		addURLFn: func(url string) (string, error) {
+			t.Fatal("AddURL should not be called for empty URL")
+			return "", nil
+		},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/url", strings.NewReader(`{"url":""}`))
 	rw := httptest.NewRecorder()
-	th.post(rw, req)
+
+	h.PostHandler(rw, req)
+
 	if rw.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", rw.Code)
+		t.Fatalf("expected 400, got %d", rw.Code)
 	}
-	respBody := rw.Body.String()
-	if strings.Contains(respBody, "shortURL") {
-		t.Errorf("response body should not contain shortURL after error, got: %q", respBody)
+	if strings.Contains(rw.Body.String(), "shortURL") {
+		t.Fatalf("response body should not contain shortURL after error, got: %q", rw.Body.String())
 	}
 }
 
 func TestPostHandler_BadJSON(t *testing.T) {
-	th := &testHandler{mock: &mockService{}}
-	body := strings.NewReader("not json at all")
-	req := httptest.NewRequest(http.MethodPost, "/url", body)
+	h := newTestHandler(&mockDB{})
+	req := httptest.NewRequest(http.MethodPost, "/url", strings.NewReader("not json at all"))
 	rw := httptest.NewRecorder()
-	th.post(rw, req)
+
+	h.PostHandler(rw, req)
+
 	if rw.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", rw.Code)
+		t.Fatalf("expected 400, got %d", rw.Code)
 	}
 }
 
-func TestPostHandler_ContentType(t *testing.T) {
-	th := &testHandler{mock: &mockService{
-		createFn: func(url string) (string, error) { return "abc1234567", nil },
-	}}
-	body := strings.NewReader(`{"url":"https://example.com"}`)
-	req := httptest.NewRequest(http.MethodPost, "/url", body)
+func TestPostHandler_InternalError(t *testing.T) {
+	h := newTestHandler(&mockDB{
+		addURLFn: func(url string) (string, error) {
+			return "", errors.New("storage down")
+		},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/url", strings.NewReader(`{"url":"https://example.com"}`))
 	rw := httptest.NewRecorder()
-	th.post(rw, req)
-	ct := rw.Header().Get("Content-Type")
-	if !strings.Contains(ct, "application/json") {
-		t.Errorf("expected Content-Type application/json, got %q", ct)
+
+	h.PostHandler(rw, req)
+
+	if rw.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", rw.Code)
 	}
 }
 
 func TestGetHandler_Found(t *testing.T) {
-	th := &testHandler{mock: &mockService{
-		getLongFn: func(short string) (string, error) { return "https://example.com", nil },
-	}}
+	h := newTestHandler(&mockDB{
+		getLongURLFn: func(short string) (string, error) {
+			if short != "abc1234567" {
+				t.Fatalf("expected short code abc1234567, got %q", short)
+			}
+			return "https://example.com", nil
+		},
+	})
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /{shortURL}", th.get)
+	mux.HandleFunc("GET /{shortURL}", h.GetHandler)
 	req := httptest.NewRequest(http.MethodGet, "/abc1234567", nil)
 	rw := httptest.NewRecorder()
+
 	mux.ServeHTTP(rw, req)
+
 	if rw.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", rw.Code)
+		t.Fatalf("expected 200, got %d", rw.Code)
+	}
+	if ct := rw.Header().Get("Content-Type"); !strings.Contains(ct, "application/json") {
+		t.Fatalf("expected Content-Type application/json, got %q", ct)
 	}
 	var resp map[string]string
 	if err := json.NewDecoder(rw.Body).Decode(&resp); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
+		t.Fatalf("invalid JSON response: %v", err)
 	}
 	if resp["URL"] != "https://example.com" {
-		t.Errorf("expected URL=https://example.com, got %q", resp["URL"])
+		t.Fatalf("expected URL=https://example.com, got %q", resp["URL"])
 	}
 }
 
 func TestGetHandler_NotFound(t *testing.T) {
-	th := &testHandler{mock: &mockService{
-		getLongFn: func(short string) (string, error) { return "", errors.New("not found") },
-	}}
+	h := newTestHandler(&mockDB{
+		getLongURLFn: func(short string) (string, error) {
+			return "", apperrors.ErrNotFound
+		},
+	})
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /{shortURL}", th.get)
+	mux.HandleFunc("GET /{shortURL}", h.GetHandler)
 	req := httptest.NewRequest(http.MethodGet, "/unknown123", nil)
 	rw := httptest.NewRecorder()
+
 	mux.ServeHTTP(rw, req)
+
 	if rw.Code != http.StatusNotFound {
-		t.Errorf("expected 404, got %d", rw.Code)
+		t.Fatalf("expected 404, got %d", rw.Code)
 	}
 }
 
-func TestGetHandler_ContentType(t *testing.T) {
-	th := &testHandler{mock: &mockService{
-		getLongFn: func(short string) (string, error) { return "https://example.com", nil },
-	}}
+func TestGetHandler_InternalError(t *testing.T) {
+	h := newTestHandler(&mockDB{
+		getLongURLFn: func(short string) (string, error) {
+			return "", errors.New("storage down")
+		},
+	})
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /{shortURL}", th.get)
+	mux.HandleFunc("GET /{shortURL}", h.GetHandler)
 	req := httptest.NewRequest(http.MethodGet, "/abc1234567", nil)
 	rw := httptest.NewRecorder()
+
 	mux.ServeHTTP(rw, req)
-	ct := rw.Header().Get("Content-Type")
-	if !strings.Contains(ct, "application/json") {
-		t.Errorf("expected Content-Type application/json, got %q", ct)
+
+	if rw.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", rw.Code)
 	}
 }

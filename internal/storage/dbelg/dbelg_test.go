@@ -1,6 +1,8 @@
 package dbelg
 
 import (
+	"errors"
+	"main/internal/apperrors"
 	"sync"
 	"testing"
 )
@@ -48,8 +50,8 @@ func TestDBelg_GetLongURL_Found(t *testing.T) {
 func TestDBelg_GetLongURL_NotFound(t *testing.T) {
 	db := NewDBelg()
 	_, err := db.GetLongURL("nonexistent")
-	if err == nil {
-		t.Error("expected error for unknown short URL")
+	if !errors.Is(err, apperrors.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got %v", err)
 	}
 }
 
@@ -69,8 +71,8 @@ func TestDBelg_GetShortURL_Found(t *testing.T) {
 func TestDBelg_GetShortURL_NotFound(t *testing.T) {
 	db := NewDBelg()
 	_, err := db.GetShortURL("https://notadded.com")
-	if err == nil {
-		t.Error("expected error for unknown long URL")
+	if !errors.Is(err, apperrors.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got %v", err)
 	}
 }
 

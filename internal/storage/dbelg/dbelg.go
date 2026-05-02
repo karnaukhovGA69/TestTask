@@ -1,7 +1,7 @@
 package dbelg
 
 import (
-	"errors"
+	"main/internal/apperrors"
 	"main/shorturl"
 	"sync"
 )
@@ -23,7 +23,7 @@ func (db *DBelg) GetShortURL(longURL string) (string, error) {
 	shortURL, ok := db.longToShort[longURL]
 	db.mu.RUnlock()
 	if !ok {
-		return "", errors.New("Ссылка не найден")
+		return "", apperrors.ErrNotFound
 	}
 	return shortURL, nil
 }
@@ -33,7 +33,7 @@ func (db *DBelg) GetLongURL(shortURL string) (string, error) {
 	longURL, ok := db.shortToLong[shortURL]
 	db.mu.RUnlock()
 	if !ok {
-		return "", errors.New("Ссылка не найден")
+		return "", apperrors.ErrNotFound
 	}
 	return longURL, nil
 }
@@ -49,7 +49,7 @@ func (db *DBelg) AddURL(url string) (string, error) {
 	for i := 0; i < maxGenerateAttempts; i++ {
 		shortURL, err := shorturl.MakeShortURL()
 		if err != nil {
-			return "", errors.New("не получилось создать короткий URL")
+			return "", apperrors.ErrShortURLGeneration
 		}
 
 		if _, ok := db.shortToLong[shortURL]; ok {
@@ -62,5 +62,5 @@ func (db *DBelg) AddURL(url string) (string, error) {
 		return shortURL, nil
 	}
 
-	return "", errors.New("не получилось создать уникальный короткий URL")
+	return "", apperrors.ErrUniqueShortURLGeneration
 }

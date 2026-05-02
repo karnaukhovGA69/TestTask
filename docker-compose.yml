@@ -1,17 +1,15 @@
 services:
-  
   postgres:
     image: postgres:16.0
-    container_name: postgres_for_short_url
-    environment: 
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_DB: ${DB_NAME}
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-adminadmin}
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_DB: ${DB_NAME:-shorturl}
     volumes:
       - ./migrations/init.sql:/docker-entrypoint-initdb.d/init.sql
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-admin} -d ${DB_NAME:-shorturl}"]
       interval: 5s
       timeout: 3s
       retries: 69
@@ -20,15 +18,19 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: shortener_app
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
+    environment:
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USER: ${DB_USER:-admin}
+      DB_PASSWORD: ${DB_PASSWORD:-adminadmin}
+      DB_NAME: ${DB_NAME:-shorturl}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
     ports:
       - "8080:8080"
-    volumes:
-      - ./.env:/app/.env:ro
     entrypoint: ["/app/url-shortener"]
     command: ["postgres"]
 volumes:

@@ -4,7 +4,7 @@ HTTP-сервис для сокращения ссылок, написанный
 
 ## Требования
 
-- Go 1.22+
+- Go 1.25+
 - Docker и Docker Compose (для запуска через контейнер)
 
 ## Локальный запуск
@@ -17,21 +17,19 @@ go run ./cmd/app dbelg
 
 ### PostgreSQL хранилище
 
-Создайте файл `.env` на основе `.env.example` и запустите:
+Создайте файл `.env` с переменными из раздела ниже и запустите:
 
 ```bash
-cp .env.example .env
 go run ./cmd/app postgres
 ```
 
 ## Запуск через Docker Compose
 
 ```bash
-cp .env.example .env
 docker compose up --build
 ```
 
-Сервис будет доступен на `http://localhost:8080`.
+Сервис будет доступен на `http://localhost:8080`. Для переопределения параметров базы можно создать `.env` с переменными из раздела ниже.
 
 ## API
 

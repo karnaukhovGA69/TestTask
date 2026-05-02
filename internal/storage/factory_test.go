@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"errors"
+	"main/internal/apperrors"
 	"testing"
 )
 
@@ -28,7 +30,18 @@ func TestMakeDB_DbelgCaseInsensitive(t *testing.T) {
 
 func TestMakeDB_Unknown(t *testing.T) {
 	_, err := MakeDB("mongodb")
-	if err == nil {
-		t.Error("expected error for unknown DB type")
+	if !errors.Is(err, apperrors.ErrUnknownStorage) {
+		t.Fatalf("expected ErrUnknownStorage, got %v", err)
+	}
+}
+
+func TestMakeDB_PostgresMissingConfig(t *testing.T) {
+	for _, key := range []string{"DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME", "DB_SSLMODE"} {
+		t.Setenv(key, "")
+	}
+
+	_, err := MakeDB("postgres")
+	if !errors.Is(err, apperrors.ErrMissingConfig) {
+		t.Fatalf("expected ErrMissingConfig, got %v", err)
 	}
 }

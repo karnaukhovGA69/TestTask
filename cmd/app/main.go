@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"main/internal/handler"
@@ -8,6 +10,8 @@ import (
 	"main/internal/storage"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -29,7 +33,10 @@ func main() {
 	typeOfDB := args[1]
 	db, err := storage.MakeDB(typeOfDB)
 	if err != nil {
-		logger.Fatal("Не получислоь запустить базу данных")
+		logger.Fatal("Не получислоь запустить базу данных", zap.Error(err))
+	}
+	if closer, ok := db.(interface{ Close() error }); ok {
+		defer closer.Close()
 	}
 
 	srvc := service.NewService(db)
@@ -46,8 +53,29 @@ func main() {
 		IdleTimeout:  time.Minute,
 	}
 	logger.Info("Начинаем запускать сервер на порту 8080")
-	if err := server.ListenAndServe(); err != nil {
-		logger.Fatal("Не смог запуститься сервер на порту 8080", zap.Error(err))
+	serverErr := make(chan error, 1)
+	go func() {
+		err := server.ListenAndServe()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			serverErr <- err
+		}
+		close(serverErr)
+	}()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	select {
+	case err := <-serverErr:
+		if err != nil {
+			logger.Fatal("Не смог запуститься сервер на порту 8080", zap.Error(err))
+		}
+	case <-stop:
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := server.Shutdown(ctx); err != nil {
+			logger.Fatal("Не получилось остановить сервер", zap.Error(err))
+		}
 	}
 
 }

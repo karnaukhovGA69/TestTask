@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"main/internal/apperrors"
 	"testing"
 )
 
@@ -18,16 +19,16 @@ func (m *mockDB) GetShortURL(url string) (string, error) { return m.getShortFn(u
 func TestService_CreateShortURL_Empty(t *testing.T) {
 	svc := NewService(&mockDB{})
 	_, err := svc.CreateShortURL("")
-	if err == nil {
-		t.Error("expected error for empty URL")
+	if !errors.Is(err, apperrors.ErrEmptyURL) {
+		t.Fatalf("expected ErrEmptyURL, got %v", err)
 	}
 }
 
 func TestService_CreateShortURL_Whitespace(t *testing.T) {
 	svc := NewService(&mockDB{})
 	_, err := svc.CreateShortURL("   ")
-	if err == nil {
-		t.Error("expected error for whitespace-only URL")
+	if !errors.Is(err, apperrors.ErrEmptyURL) {
+		t.Fatalf("expected ErrEmptyURL, got %v", err)
 	}
 }
 
@@ -55,16 +56,16 @@ func TestService_CreateShortURL_Valid(t *testing.T) {
 func TestService_GetLongURL_Empty(t *testing.T) {
 	svc := NewService(&mockDB{})
 	_, err := svc.GetLongURL("")
-	if err == nil {
-		t.Error("expected error for empty short URL")
+	if !errors.Is(err, apperrors.ErrEmptyURL) {
+		t.Fatalf("expected ErrEmptyURL, got %v", err)
 	}
 }
 
 func TestService_GetShortURL_Empty(t *testing.T) {
 	svc := NewService(&mockDB{})
 	_, err := svc.GetShortURL("")
-	if err == nil {
-		t.Error("expected error for empty long URL")
+	if !errors.Is(err, apperrors.ErrEmptyURL) {
+		t.Fatalf("expected ErrEmptyURL, got %v", err)
 	}
 }
 
